@@ -1,0 +1,59 @@
+version: '2'
+
+networks:
+  air_data_net:
+    driver: bridge
+
+services:
+  jupyter:
+    build: ./docker/jupyter/
+    image: parrotprediction/course-xgboost
+    working_dir: /notebooks
+    ports:
+      - "8887:8888"
+    volumes:
+      - ./notebooks/:/notebooks
+      - ./../air_data/datasets:/data/csv
+    networks:
+      air_data_net:
+        aliases:
+          - local.jupyter.air_data
+  h2o:
+    build: ./docker/h2o/
+    #    <TRACE,DEBUG,INFO,WARN,ERRR,FATAL>
+#    command: tail -f /var/log/bootstrap.log
+    command: java -Xmx12g -jar /opt/h2o.jar -log_level FATAL
+    restart: on-failure
+    ports:
+      - "54323:54321"
+      - "54324:54322"
+    expose:
+      - "54323"
+      - "54324"
+    networks:
+      air_data_net:
+        aliases:
+          - local.h2o.air_data
+  storage:
+    image: mysql:5.7
+    volumes:
+      - ./docker/storage/config/:/etc/mysql
+      - ./docker/storage/:/data/sql
+      - ./../air_data/mysql_lib:/data/mysql_lib
+      - ./../air_data/csv:/data/csv
+      - ./docker/storage/:/docker-entrypoint-initdb.d
+    restart: on-failure
+    environment:
+      MYSQL_DATABASE: air
+      MYSQL_USER: air
+      MYSQL_PASSWORD: test1234
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_PORT: 3306
+    ports:
+      - "3386:3306"
+    expose:
+      - "3306"
+    networks:
+      air_data_net:
+        aliases:
+          - local.storage.air_data
